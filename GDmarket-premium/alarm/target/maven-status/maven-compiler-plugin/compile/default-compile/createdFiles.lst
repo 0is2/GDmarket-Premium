@@ -1,0 +1,10 @@
+gdmarketpremium\Alerted.class
+gdmarketpremium\Alarm.class
+gdmarketpremium\ItemDeleted.class
+gdmarketpremium\AlarmController.class
+gdmarketpremium\PolicyHandler.class
+gdmarketpremium\AlarmRepository.class
+gdmarketpremium\config\kafka\KafkaProcessor.class
+gdmarketpremium\AlarmApplication.class
+gdmarketpremium\AbstractEvent$1.class
+gdmarketpremium\AbstractEvent.class

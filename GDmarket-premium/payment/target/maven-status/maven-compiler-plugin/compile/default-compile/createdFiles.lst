@@ -1,0 +1,12 @@
+gdmarketpremium\PaymentController.class
+gdmarketpremium\PaymentRepository.class
+gdmarketpremium\PaymentApplication.class
+gdmarketpremium\AbstractEvent.class
+gdmarketpremium\Payment.class
+gdmarketpremium\PaymentCanceled.class
+gdmarketpremium\PaymentApproved.class
+gdmarketpremium\external\Item.class
+gdmarketpremium\external\ItemService.class
+gdmarketpremium\PolicyHandler.class
+gdmarketpremium\config\kafka\KafkaProcessor.class
+gdmarketpremium\AbstractEvent$1.class
