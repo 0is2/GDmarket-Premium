@@ -19,7 +19,11 @@ spring:
         - id: payment
           uri: http://localhost:8083
           predicates:
-            - Path=/payments/** 
+            - Path=/payments/**
+        - id: alarm
+          url: http://localhost:8084
+          predicates:
+            - Path=/alarms/**
       globalcors:
         corsConfigurations:
           '[/**]':
@@ -50,7 +54,11 @@ spring:
         - id: payment
           uri: http://payment:8080
           predicates:
-            - Path=/payments/** 
+            - Path=/payments/**
+        - id: alarm
+          uri: http://alarm:8080
+          predicates:
+            - Path=/alarms/**
       globalcors:
         corsConfigurations:
           '[/**]':
