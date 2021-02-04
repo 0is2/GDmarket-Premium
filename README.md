@@ -343,6 +343,33 @@ siege -c10 -t30S -r10 -v --content-type "application/json" 'http://item:8080/ite
 
 
 ## Autoscale
+* item 시스템에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 
+* item 시스템의 resource 에 제한을 걸어둔다.
+```
+// item > deployment.yml
+
+ resources:
+   limits:
+     cpu: 500m
+   requests:
+     cpu: 200m
+```
+![28 a1](https://user-images.githubusercontent.com/26623768/106835260-5a5ed480-66da-11eb-89dc-0798e4d3de92.PNG)
+
+* HPA 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다.
+* CirCuit Breaker와 동일한 방법으로 워크로드를 50초 걸어준다.
+```
+ kubectl autoscale deploy reservation --min=1 --max=10 --cpu-percent=15
+ kubectl exec -it pod/siege-5459b87f86-wpwkt -c siege -- /bin/bash
+ siege -c250 -t50S -r1000 -v --content-type "application/json" 'http://item:8080/items POST {"itemName":"Camera"}'
+```
+![27 autoscale](https://user-images.githubusercontent.com/26623768/106835258-59c63e00-66da-11eb-999f-ef01811b3d9f.PNG)
+
+* 오토스케일 모니터링을 한다.
+```
+kubectl get deploy reservation -w
+```
+![27 autoscale 2 ](https://user-images.githubusercontent.com/26623768/106835256-592da780-66da-11eb-9f91-f0bfbcf3281c.PNG)
 
 ## 무정지 재배포
 
