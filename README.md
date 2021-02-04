@@ -316,6 +316,31 @@ kubectl get all
 
 
 ## CirCuit Breaker
+* CirCuit Breaker Framework : Spring FeignClient + Hystrix 사용
+* (호출) item 서비스 > application.yml : timeoutInMilliseconds 610 으로 설정
+```
+hystrix:
+  command:
+    default:
+      execution.isolation.thread.timeoutInMilliseconds: 610
+```
+![26 610](https://user-images.githubusercontent.com/26623768/106833584-1a4a2280-66d7-11eb-9e3f-846519019f24.PNG)
+
+* (피호출) alarm 서비스 > Alarm.java : sleep 440 + 랜덤 220 으로 설정
+```
+Thread.currentThread().sleep((long) (400 + Math.random() * 220));
+```
+![26 sleep](https://user-images.githubusercontent.com/26623768/106833585-1b7b4f80-66d7-11eb-9740-a92b0e68d802.PNG)
+
+* siege 툴을 통한 서킷 브레이커 동작 확인
+* 동시사용자 10명 , 30초 동안 siege 부하 테스트 실시
+```
+siege -c10 -t30S -r10 -v --content-type "application/json" 'http://item:8080/items POST {"itemName":"Camera"}'
+```
+![25 부하테스트](https://user-images.githubusercontent.com/26623768/106833199-7c565800-66d6-11eb-9431-50197c364c24.PNG)
+
+![25 부하테스트 2](https://user-images.githubusercontent.com/26623768/106833202-7d878500-66d6-11eb-9fb3-880458042465.PNG)
+
 
 ## Autoscale
 
