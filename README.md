@@ -205,9 +205,9 @@ GDmarket : 근대마켓 - 근거리 대여 마켓 (Premium)
 ## Correlation
 * 각 마이크로 서비스는 상호 관련 키를 갖는다.
 * CQRS 구현을 위해, Alarm과 ItemInfo는 상호 관련 키 'itemNo', 'alarmStatus'를 갖는다.
-* Alarm.java
+* Alarm.java <br>
 ![13 alarm](https://user-images.githubusercontent.com/26623768/106830470-8cb80400-66d1-11eb-8d7d-48e837d4e53f.PNG)
-* ItemInfo.java
+* ItemInfo.java <br>
 ![12 item info](https://user-images.githubusercontent.com/26623768/106830466-8b86d700-66d1-11eb-9aec-8fbc9b5204b9.PNG)
 
 ## Req/Res
@@ -243,9 +243,9 @@ public interface AlarmService {
 ## Gateway
 * 각 마이크로서비스는 gateway를 통해서 호출할 수 있다
 * gateway 서비스 > application.yml 파일에 구현한다.
-* local 세팅
+* local 세팅 <br>
 ![16 local](https://user-images.githubusercontent.com/26623768/106831101-a6a61680-66d2-11eb-84c5-93facf55cf6a.PNG)
-* docker 세팅
+* docker 세팅 <br>
 ![17 docker](https://user-images.githubusercontent.com/26623768/106831105-a7d74380-66d2-11eb-8259-62393451166c.PNG)
 
 
@@ -281,7 +281,7 @@ http alarm:8080/alarms
 ```
 ![4 PUBSUB 실행됨](https://user-images.githubusercontent.com/26623768/106826508-6478d700-66ca-11eb-820b-4637d2809d48.PNG)
 
-* gateway로 reservation 서비스 GET 호출
+* gateway로 reservation 서비스 GET 호출<br>
 ![18 gateway](https://user-images.githubusercontent.com/26623768/106831219-dfde8680-66d2-11eb-80f1-c738485b7940.PNG)
 
 # 운영
@@ -320,13 +320,13 @@ kubectl get all
 
 ## Config Map
 * alarm 서비스를 REQ로 호출하는 item 서비스에 config map을 구현한다.
-* item > application.yml : local 
+* item > application.yml : local  <br>
 ![19 item app local](https://user-images.githubusercontent.com/26623768/106831460-4d8ab280-66d3-11eb-9aba-d70a73086b12.PNG)
-* item > application.yml : docker
+* item > application.yml : docker <br>
 ![20 item app docker](https://user-images.githubusercontent.com/26623768/106831461-4e234900-66d3-11eb-9b32-763d20f97a14.PNG)
-* item > deployment.yml : env 세팅
+* item > deployment.yml : env 세팅 <br>
 ![21 item deployment env](https://user-images.githubusercontent.com/26623768/106831464-4ebbdf80-66d3-11eb-8ce0-d114aea29128.PNG)
-* item > external > AlarmService.java : env 사용
+* item > external > AlarmService.java : env 사용 <br>
 ![22 item external alarmservice](https://user-images.githubusercontent.com/26623768/106831466-4ebbdf80-66d3-11eb-9f42-152441265794.PNG)
 * config map 생성 및 확인
 ```
@@ -341,10 +341,10 @@ kubectl get configmap newurl -o yaml
 ## Polyglot
 * 다형성을 만족하도록 구현한다.
 * item, reservation 서비스는 H2 DB로 구현하고, 그와 달리 payment, alarm 서비스의 경우 Hsql DB로 구현한다.
-* item, reservation 서비스의 pom.xml 설정
+* item, reservation 서비스의 pom.xml 설정 <br>
 ![1 p1](https://user-images.githubusercontent.com/26623768/106831962-2da7be80-66d4-11eb-9cbe-06a1cea6eb97.png)
 
-* payment, alarm 서비스의 pom.xml 설정
+* payment, alarm 서비스의 pom.xml 설정 <br>
 ![1 p2](https://user-images.githubusercontent.com/26623768/106831964-2ed8eb80-66d4-11eb-9d65-ddb6fb7eaabd.png)
 
 ## Self-healing
