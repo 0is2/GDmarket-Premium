@@ -281,7 +281,10 @@ http alarm:8080/alarms
 ```
 ![4 PUBSUB 실행됨](https://user-images.githubusercontent.com/26623768/106826508-6478d700-66ca-11eb-820b-4637d2809d48.PNG)
 
-* gateway로 reservation 서비스 GET 호출<br>
+* gateway로 reservation 서비스 GET 호출
+```
+http gateway:8080/reservations
+```
 ![18 gateway](https://user-images.githubusercontent.com/26623768/106831219-dfde8680-66d2-11eb-80f1-c738485b7940.PNG)
 
 # 운영
