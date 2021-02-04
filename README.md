@@ -18,7 +18,7 @@ GDmarket : 근대마켓 - 근거리 대여 마켓 (Premium)
         - [Correlation](#Correlation)
         - [Req/Res](#Req/Res)
         - [Gateway](#Gateway)
-        - [시나리오 검증](#시나리오-검증)
+        - [구현 검증](#구현-검증)
    - [운영](#운영)
       - [Deploy](#Deploy)
       - [CirCuit Breaker](#CirCuit-Breaker)
@@ -89,16 +89,167 @@ GDmarket : 근대마켓 - 근거리 대여 마켓 (Premium)
 # 구현
 
 ## Saga
+* Pub/Sub을 구현한다.
+* (Pub) 호출 서비스 및 Event : item / item이 삭제됨
+```java
+   // item > Item.java
+   
+    @PreRemove
+    public void onPreRemove() {
+        ItemDeleted itemDeleted = new ItemDeleted();
+        itemDeleted.setItemNo(this.getItemNo());
+        itemDeleted.setAlarmStatus("DeleteAlerted");
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json = null;
+        try {
+            json = objectMapper.writeValueAsString(itemDeleted);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("JSON format exception", e);
+        }
+        KafkaProcessor processor = ItemApplication.applicationContext.getBean(KafkaProcessor.class);
+        MessageChannel outputChannel = processor.outboundTopic();
+        outputChannel.send(org.springframework.integration.support.MessageBuilder
+                .withPayload(json)
+                .setHeader(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.APPLICATION_JSON)
+                .build());
+        System.out.println("@@@@@@@ itemDeleted to Json @@@@@@@");
+        System.out.println(itemDeleted.toJson());
+    }
+```
+![9 itemDelete](https://user-images.githubusercontent.com/26623768/106829800-38605480-66d0-11eb-8419-8c868be631d1.PNG)
+
+* (Sub) 피호출 서비스 및 Policy : alarm / alarm 상태 변경 (Alerted -> DeleteAlerted)
+```java
+   // alarm > PolicyHandler.java
+   
+   @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverItemDeleted_(@Payload ItemDeleted itemDeleted){
+        if(itemDeleted.isMe()){
+            System.out.println("##### listener  : " + itemDeleted.toJson());
+            if("DeleteAlerted".equals(itemDeleted.getAlarmStatus())){
+                Alarm alarm = (Alarm) alarmManagementRepository.findByItemNo(itemDeleted.getItemNo()).get(0);
+                alarm.setAlarmStatus("DeleteAlerted");
+                alarmManagementRepository.save(alarm);
+            }
+        }
+    }
+```
+![10 wheneverItemDeleted_](https://user-images.githubusercontent.com/26623768/106829806-38f8eb00-66d0-11eb-9bad-9c37b3b5f618.PNG)
 
 ## CQRS
+* command와 query의 역할을 분리한다. (view 구현)
+* item 이 등록될 때 알람상태(AlarmStatus)를 View를 통해 확인할 수 있도록 구현
+* item 코드 구현
+```java
+// item > Item.java
+
+    @PostPersist
+    public void onPostPersist(){
+        ItemRegistered itemRegistered = new ItemRegistered();
+        itemRegistered.setItemNo(this.getItemNo());
+        itemRegistered.setItemName(this.getItemName());
+        itemRegistered.setItemPrice(this.getItemPrice());
+        itemRegistered.setItemStatus("Rentable");
+        itemRegistered.setRentalStatus("NotRenting");
+        itemRegistered.setAlarmStatus("Alerted");
+        
+        // view를 위해 Kafka Send
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json = null;
+        try {
+            json = objectMapper.writeValueAsString(itemRegistered);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("JSON format exception", e);
+        }
+        KafkaProcessor processor = ItemApplication.applicationContext.getBean(KafkaProcessor.class);
+        MessageChannel outputChannel = processor.outboundTopic();
+        outputChannel.send(org.springframework.integration.support.MessageBuilder
+                .withPayload(json)
+                .setHeader(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.APPLICATION_JSON)
+                .build());
+
+        System.out.println("@@@@@@@ ItemRegistered to Json @@@@@@@");
+        System.out.println(itemRegistered.toJson());
+   }
+```
+![11 A cqrs](https://user-images.githubusercontent.com/26623768/106830224-faaffb80-66d0-11eb-9902-c23126b28f5e.PNG)
+
+* view 코드 구현
+```java
+// item > ItemInfoViewHandler.java
+
+   @StreamListener(KafkaProcessor.INPUT)
+    public void whenItemRegistered_then_CREATE_1 (@Payload ItemRegistered itemRegistered) {
+        try {
+            if (itemRegistered.isMe()) {
+                // view 객체 생성
+                ItemInfo itemInfo= new ItemInfo();
+                // view 객체에 이벤트의 Value 를 set 함
+                itemInfo.setItemNo(itemRegistered.getItemNo());
+                itemInfo.setItemName(itemRegistered.getItemName());
+                itemInfo.setItemStatus(itemRegistered.getItemStatus());
+                itemInfo.setItemPrice(itemRegistered.getItemPrice());
+                itemInfo.setAlarmStatus(itemRegistered.getAlarmStatus());
+                // view 레파지 토리에 save
+                itemInfoRepository.save(itemInfo);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+```
+![11 cqrs](https://user-images.githubusercontent.com/26623768/106830225-fbe12880-66d0-11eb-9824-9750188a2944.PNG)
+
 
 ## Correlation
+* 각 마이크로 서비스는 상호 관련 키를 갖는다.
+* CQRS 구현을 위해, Alarm과 ItemInfo는 상호 관련 키 'itemNo', 'alarmStatus'를 갖는다.
+* Alarm.java
+![13 alarm](https://user-images.githubusercontent.com/26623768/106830470-8cb80400-66d1-11eb-8d7d-48e837d4e53f.PNG)
+* ItemInfo.java
+![12 item info](https://user-images.githubusercontent.com/26623768/106830466-8b86d700-66d1-11eb-9aec-8fbc9b5204b9.PNG)
 
 ## Req/Res
+* Sync 호출을 구현한다.
+* (Req) 호출 서비스 구현
+```java
+// item.java > onPostPersist()
+
+// alarm REQ/RES
+System.out.println("@@@ Alarm @@@");
+System.out.println("@@@ ItemNo : " + getItemNo());
+
+gdmarketpremium.external.Alarm alarm = new gdmarketpremium.external.Alarm();
+alarm.setAlarmStatus("Alerted");
+alarm.setAlarmNo(getItemNo());
+alarm.setItemNo(getItemNo());
+```
+![14 Item onPostPersist](https://user-images.githubusercontent.com/26623768/106830892-48793380-66d2-11eb-8234-1124429557ce.PNG)
+
+* (Res) 피호출 서비스 구현
+```java
+// AlarmService.java
+
+@FeignClient(name="alarm", url="${api.alarm.url}")
+public interface AlarmService {
+ @RequestMapping(method= RequestMethod.POST, path="/alarms")
+    public void alert(@RequestBody Alarm alarm);
+}
+```
+![15 alarmservice](https://user-images.githubusercontent.com/26623768/106830894-49aa6080-66d2-11eb-9dac-d44fc1cf22b3.PNG)
+
 
 ## Gateway
+* 각 마이크로서비스는 gateway를 통해서 호출할 수 있다
+* gateway 서비스 > application.yml 파일에 구현한다.
+* local 세팅
+![16 local](https://user-images.githubusercontent.com/26623768/106831101-a6a61680-66d2-11eb-84c5-93facf55cf6a.PNG)
+* docker 세팅
+![17 docker](https://user-images.githubusercontent.com/26623768/106831105-a7d74380-66d2-11eb-8259-62393451166c.PNG)
 
-## 시나리오 검증
+
+## 구현 검증
 
 * item 등록함
 ```
@@ -130,6 +281,9 @@ http alarm:8080/alarms
 ```
 ![4 PUBSUB 실행됨](https://user-images.githubusercontent.com/26623768/106826508-6478d700-66ca-11eb-820b-4637d2809d48.PNG)
 
+* gateway로 reservation 서비스 GET 호출
+![18 gateway](https://user-images.githubusercontent.com/26623768/106831219-dfde8680-66d2-11eb-80f1-c738485b7940.PNG)
+
 # 운영
 
 ## Deploy
@@ -145,7 +299,7 @@ kubectl apply -f kubernetes/deployment.yml
 ```
 ![6 kubectl apply](https://user-images.githubusercontent.com/26623768/106829283-2f22b800-66cf-11eb-978e-9b580d02c761.PNG)
 
-* (2) 컨테이너라이징: 서비스 생성 확인
+* (2) 컨테이너라이징: 서비스 생성 확인 (gateway 포함모든 서비스 동일)
 ```
 kubectl expose deploy gateway --type="ClusterIP" --port=8080
 ```
@@ -165,7 +319,32 @@ kubectl get all
 ## 무정지 재배포
 
 ## Config Map
+* alarm 서비스를 REQ로 호출하는 item 서비스에 config map을 구현한다.
+* item > application.yml : local 
+![19 item app local](https://user-images.githubusercontent.com/26623768/106831460-4d8ab280-66d3-11eb-9aba-d70a73086b12.PNG)
+* item > application.yml : docker
+![20 item app docker](https://user-images.githubusercontent.com/26623768/106831461-4e234900-66d3-11eb-9b32-763d20f97a14.PNG)
+* item > deployment.yml : env 세팅
+![21 item deployment env](https://user-images.githubusercontent.com/26623768/106831464-4ebbdf80-66d3-11eb-8ce0-d114aea29128.PNG)
+* item > external > AlarmService.java : env 사용
+![22 item external alarmservice](https://user-images.githubusercontent.com/26623768/106831466-4ebbdf80-66d3-11eb-9f42-152441265794.PNG)
+* config map 생성 및 확인
+```
+# 생성
+kubectl create configmap newurl --from-literal=url=http://alarm:8080
+
+# 확인
+kubectl get configmap newurl -o yaml
+```
+![23 configmap 확인](https://user-images.githubusercontent.com/26623768/106831798-e4f00580-66d3-11eb-93ba-9bca68dcb29f.PNG)
 
 ## Polyglot
+* 다형성을 만족하도록 구현한다.
+* item, reservation 서비스는 H2 DB로 구현하고, 그와 달리 payment, alarm 서비스의 경우 Hsql DB로 구현한다.
+* item, reservation 서비스의 pom.xml 설정
+![1 p1](https://user-images.githubusercontent.com/26623768/106831962-2da7be80-66d4-11eb-9cbe-06a1cea6eb97.png)
+
+* payment, alarm 서비스의 pom.xml 설정
+![1 p2](https://user-images.githubusercontent.com/26623768/106831964-2ed8eb80-66d4-11eb-9d65-ddb6fb7eaabd.png)
 
 ## Self-healing
